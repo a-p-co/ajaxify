@@ -1,0 +1,21 @@
+{
+  "name": "ap-ajaxify",
+  "version": "1.0.0",
+  "description": "Adaptation of the html5 ajaxify for customization purposes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ajax",
+    "load-ajax",
+    "html5",
+    "history"
+  ],
+  "author": "A–P.CO",
+  "license": "MIT",
+  "dependencies": {
+    "ampersand-events": "^1.1.1",
+    "lodash.defaults": "^3.1.1"
+  }
+}
