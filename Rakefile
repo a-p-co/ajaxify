@@ -2,7 +2,6 @@ DIST = File.join(File.dirname(__FILE__), "dist/ap-ajaxify")
 ENTRY = File.join(File.dirname(__FILE__), "lib/ap-ajaxify.js")
 
 task :eslint do
-  # sh "eslint -c ./.eslintrc #{BASE_FILE}"
   sh "eslint #{ENTRY}"
 end
 
