@@ -1,4 +1,46 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+'use strict';
+
+function whichTransitionEvent() {
+  var t;
+  var el = document.createElement('fakeelement');
+  var transitions = {
+    'transition': 'transitionend',
+    'OTransition': 'oTransitionEnd',
+    'MozTransition': 'transitionend',
+    'WebkitTransition': 'webkitTransitionEnd'
+  };
+
+  for (t in transitions) {
+    if (el.style[t] !== undefined) {
+      return transitions[t];
+    }
+  }
+}
+
+function whichAnimationEvent() {
+  var t;
+  var el = document.createElement('fakeelement');
+  var transitions = {
+    'transition': 'transitionend',
+    'OTransition': 'oTransitionEnd',
+    'MozTransition': 'transitionend',
+    'WebkitTransition': 'webkitTransitionEnd'
+  };
+
+  for (t in transitions) {
+    if (el.style[t] !== undefined) {
+      return transitions[t];
+    }
+  }
+}
+
+module.exports = {
+  transition: whichTransitionEvent(),
+  animation: whichAnimationEvent()
+};
+
+},{}],2:[function(require,module,exports){
 /**
  * AP–Ajaxify
  **
@@ -47,7 +89,7 @@ var _ampersandEvents = require('ampersand-events');
 
 var _ampersandEvents2 = _interopRequireDefault(_ampersandEvents);
 
-var _cssEvents = require('./css-events');
+var _cssEvents = require('../css-events');
 
 var _cssEvents2 = _interopRequireDefault(_cssEvents);
 
@@ -406,49 +448,7 @@ module.exports = function ajaxify(options) {
   return ajaxify;
 };
 
-},{"./css-events":2,"ampersand-events":3}],2:[function(require,module,exports){
-'use strict';
-
-function whichTransitionEvent() {
-  var t;
-  var el = document.createElement('fakeelement');
-  var transitions = {
-    'transition': 'transitionend',
-    'OTransition': 'oTransitionEnd',
-    'MozTransition': 'transitionend',
-    'WebkitTransition': 'webkitTransitionEnd'
-  };
-
-  for (t in transitions) {
-    if (el.style[t] !== undefined) {
-      return transitions[t];
-    }
-  }
-}
-
-function whichAnimationEvent() {
-  var t;
-  var el = document.createElement('fakeelement');
-  var transitions = {
-    'transition': 'transitionend',
-    'OTransition': 'oTransitionEnd',
-    'MozTransition': 'transitionend',
-    'WebkitTransition': 'webkitTransitionEnd'
-  };
-
-  for (t in transitions) {
-    if (el.style[t] !== undefined) {
-      return transitions[t];
-    }
-  }
-}
-
-module.exports = {
-  transition: whichTransitionEvent(),
-  animation: whichAnimationEvent()
-};
-
-},{}],3:[function(require,module,exports){
+},{"../css-events":1,"ampersand-events":3}],3:[function(require,module,exports){
 ;if (typeof window !== "undefined") {  window.ampersand = window.ampersand || {};  window.ampersand["ampersand-events"] = window.ampersand["ampersand-events"] || [];  window.ampersand["ampersand-events"].push("1.1.1");}
 var runOnce = require('lodash.once');
 var uniqueId = require('lodash.uniqueid');
@@ -3049,4 +3049,4 @@ function baseToString(value) {
 
 module.exports = baseToString;
 
-},{}]},{},[1]);
+},{}]},{},[2]);
