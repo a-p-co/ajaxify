@@ -46,7 +46,7 @@ $.noConflict();
 const extend = $.extend;
 
 import Events from 'ampersand-events';
-import cssEvents from '../css-events';
+import cssEvents from './css-events';
 
 const animationEvent = cssEvents.animation;
 const transitionEvent = cssEvents.transition;
