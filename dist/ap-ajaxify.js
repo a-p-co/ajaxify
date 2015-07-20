@@ -23,7 +23,7 @@
  *
  * Data: Called when we already have the data from the ajax call.
  * dataObject:
- * 		newContainer: The new container from the ajac call.
+ *    newContainer: The new container from the ajac call.
  *    ajaxContainer: The main container used for ajaxify when changing states and "views".
  *    data: The body from the new html content.
  *
@@ -37,8 +37,6 @@
  *
  */
 
-// TODO: Implement Ajaxify as Router Based lightweight library.
-
 'use strict';
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
@@ -51,360 +49,386 @@ var _cssEvents = require('./css-events');
 
 var _cssEvents2 = _interopRequireDefault(_cssEvents);
 
-var $ = window.jQuery;
-$.noConflict();
+(function () {
+  'use strict';
 
-var extend = $.extend;
+  var animationEvent = _cssEvents2['default'].animation;
+  var transitionEvent = _cssEvents2['default'].transition;
 
-var animationEvent = _cssEvents2['default'].animation;
-var transitionEvent = _cssEvents2['default'].transition;
+  var toString = Object.prototype.toString;
 
-var toString = Object.prototype.toString;
+  var $ = window.jQuery;
+  $.noConflict();
 
-/**
- * This are the defautls values that gets passed to the ajaxify "function".
- * Overwrite to the user needs.
- * @type {Object}
- */
-var defaults = {
-  contentSelector: '[data-role=main]',
-  linkSelector: 'a.ajaxify',
+  var extend = $.extend;
 
-  menuSelector: '[data-role=menu]',
-  menuChildrenSelector: '> li,> ul > li',
-  activeClass: 'active selected current youarehere',
-  activeSelector: '.active, .selected, .current, .youarehere',
-  completedEventName: 'statechangecomplete',
+  /**
+   * This are the defautls values that gets passed to the ajaxify "function".
+   * Overwrite to the user needs.
+   * @type {Object}
+   */
+  var defaults = {
+    contentSelector: '[data-role=main]',
+    linkSelector: 'a.ajaxify',
 
-  // Función que nos permite setear un "{data}" para enviar al servidor
-  setData: null, // function( linkAttributes ) {},
-  beforeSend: null, // function( jqXHR, settings ) {},
-  onStart: null, // function() {},
-  onData: null, // function( data ) {},
-  onComplete: null, // function() {},
+    menuSelector: '[data-role=menu]',
+    menuChildrenSelector: '> li,> ul > li',
+    activeClass: 'active selected current youarehere',
+    activeSelector: '.active, .selected, .current, .youarehere',
+    completedEventName: 'statechangecomplete',
 
-  cache: true,
+    // Función que nos permite setear un "{data}" para enviar al servidor
+    setData: null, // function( linkAttributes ) {},
+    beforeSend: null, // function( jqXHR, settings ) {},
+    onStart: null, // function() {},
+    onData: null, // function( data ) {},
+    onComplete: null, // function() {},
 
-  animateClass: null, // { start: 'startClass', end: 'endClass' },
+    cache: true,
 
-  scrollBefore: false,
-  scrollOptions: {
-    duration: 600,
-    easing: 'swing'
-  }
-};
+    animateClass: null, // { start: 'startClass', end: 'endClass' },
 
-/**
- * The Main object which we'll contain all of the necessary functionality for our "Ajaxify".
- * It inherits from "ampersand-events" so the user can attach his own customizations based upon this events.
- */
-var ajx = Object.create({}, _ampersandEvents2['default']);
-
-/**
- * This is the method in charge of initializing all the necessary variables.
- * @param  {Object} options Object customization based on the defautls above supplied.
- */
-ajx.__initialize = function mainInitAjx(options) {
-  this.options = extend({}, defaults, options);
-
-  this.$window = $(window);
-  this.$body = $(document.body);
-
-  this.$content = $(this.options.contentSelector);
-  this.contentNode = this.$content.get(0);
-  this.$links = $(this.options.linkSelector);
-  this.$menu = $(this.options.menuSelector);
-
-  this.History = window.History;
-  this.rootUrl = History.getRootUrl();
-
-  // Let's fire it up madafacka!
-  this._init();
-};
-
-/**
- * Function in charge of calling the check function and binding the appropriate events.
- */
-ajx._init = function initAjx() {
-  this.checkContent();
-  this.bindEvents();
-};
-
-/**
- * Let's make sure we have content, if not default to the body.
- */
-ajx.checkContent = function checkContent() {
-  if (this.$content.length === 0) {
-    this.$content = this.$body;
-  }
-};
-
-/**
- * Function in charge of attaching all the events to the corresponding nodes
- */
-ajx.bindEvents = function bindEvents() {
-  this.$body.on('click', this.options.linkSelector, this.clickAjax.bind(this));
-  this.$window.bind('statechange', this.stateChange.bind(this));
-
-  if (this.options.onComplete && 'function' === typeof this.options.onComplete) {
-    this.$window.bind(this.options.completedEventName, this.options.onComplete.bind(this));
-  }
-};
-
-/**
- * Function which handles when a link with the correct class it's clicked.
- * It parses and calls the History and buildSettings methods to navigate across pages.
- * @param  {Event} eve The event that gets passed from the click event.
- * @return {Boolean}     If the link was clicked with a mod. key it allows to continue with the normal behavior returning true,
- *                       if not it prevents de default behavior and returns false.
- */
-ajx.clickAjax = function clickAjax(eve) {
-  var $this = eve.target.href ? $(eve.target) : $(eve.currentTarget),
-      url = $this.attr('href'),
-      title = $this.attr('title') || null;
-
-  // Continue as normal for cmd click
-  if (eve.which == 2 || eve.metaKey) return true;
-
-  // Build ajax settings
-  this.getSettings = this.buildSettings(this.getAttributes(eve.target));
-
-  // Ajaxify the link
-  this.History.pushState(null, title, url);
-
-  eve.preventDefault();
-  return false;
-};
-
-/**
- * Function in charge of parsing all the attributes of an ajaxify link.
- * @param  {HTMLAnchorElement} link
- * @return {Function}      Return a function able to be called when ever we want in the future.
- */
-ajx.getAttributes = function getLinkAttributes(link) {
-  return extend({}, link.attributes);
-};
-
-/**
- * Construct and build the settings to pass to the AJAX method.
- * Apply some basic configuration, then if the user passed the "setData" function, it we'll apply as well those.
- * @return {Object}
- */
-ajx.buildSettings = function buildAjaxSettings(attrs) {
-  var settings = {
-    url: this.History.getState().url,
-    beforeSend: this.options.beforeSend,
-    cache: this.options.cache ? true : false
+    scrollBefore: false,
+    scrollOptions: {
+      duration: 600,
+      easing: 'swing'
+    }
   };
 
-  if (this.options.setData) {
-    settings.data = this.options.setData(attrs);
-  }
+  /**
+   * The Main object which we'll contain all of the necessary functionality for our "Ajaxify".
+   * It inherits from "ampersand-events" so the user can attach his own customizations based upon this events.
+   */
+  var ajx = extend({}, _ampersandEvents2['default']);
 
-  return function () {
-    return settings;
+  /**
+   * This is the method in charge of initializing all the necessary variables.
+   * @param  {Object} options Object customization based on the defautls above supplied.
+   */
+  ajx.__initialize = function mainInitAjx(options) {
+    this.options = extend({}, defaults, options);
+
+    this.$window = $(window);
+    this.$body = $(document.body);
+
+    this.$content = $(this.options.contentSelector);
+    this.contentNode = this.$content.get(0);
+    this.$links = $(this.options.linkSelector);
+    this.$menu = $(this.options.menuSelector);
+
+    this.History = window.History;
+    this.rootUrl = History.getRootUrl();
+
+    // Let's fire it up madafacka!
+    this._init();
   };
-};
 
-/**
- * Function the handles the start of the stateChange of our ajaxify
- */
-ajx.stateChange = function stateChange() {
-  var ajaxSettings = this.getSettings(),
-      relativeUrl = ajaxSettings.url.replace(this.rootUrl, '');
+  /**
+   * Function in charge of calling the check function and binding the appropriate events.
+   */
+  ajx._init = function initAjx() {
+    this.checkContent();
+    this.bindEvents();
+  };
 
-  this.trigger('start');
+  /**
+   * Let's make sure we have content, if not default to the body.
+   */
+  ajx.checkContent = function checkContent() {
+    if (this.$content.length === 0) {
+      this.$content = this.$body;
+    }
+  };
 
-  if (this.options.scrollBefore) {
-    this.performScroll();
-  }
+  /**
+   * Function in charge of attaching all the events to the corresponding nodes
+   */
+  ajx.bindEvents = function bindEvents() {
+    this.$body.on('click', this.options.linkSelector, this.clickAjax.bind(this));
+    this.$window.bind('statechange', this.stateChange.bind(this));
 
-  // Set Loading
-  if (this.options.animateClass) {
-    this.$content.addClass(this.options.animateClass.start);
-    return this.$content.one([transitionEvent, animationEvent], this.ajax.bind(this, ajaxSettings, relativeUrl));
-  }
+    if (this.options.onComplete && 'function' === typeof this.options.onComplete) {
+      this.$window.bind(this.options.completedEventName, this.options.onComplete.bind(this));
+    }
+  };
 
-  return this.ajax.call(this, ajaxSettings, relativeUrl);
-};
+  /**
+   * Function which handles when a link with the correct class it's clicked.
+   * It parses and calls the History and buildSettings methods to navigate across pages.
+   * @param  {Event} eve The event that gets passed from the click event.
+   * @return {Boolean}     If the link was clicked with a mod. key it allows to continue with the normal behavior returning true,
+   *                       if not it prevents de default behavior and returns false.
+   */
+  ajx.clickAjax = function clickAjax(eve) {
+    var $this = eve.target.tagName === 'A' ? $(eve.target) : $(eve.target).parents('a.ajaxify'),
+        url = $this.attr('href'),
+        title = $this.attr('title') || null;
 
-/**
- * The main function that handles all the necessary calls,
- * and processes the ajax return data an processes it.
- * @param  {Object} settings The Ajax settings
- * @param  {String} url      The url which we wanna go
- */
-ajx.ajax = function ajaxAjaxify(settings, url) {
-  var _this = this;
+    // Continue as normal for cmd click
+    if (eve.which == 2 || eve.metaKey) return true;
 
-  $.ajax(settings).done(function (data, textStatus, jqXHR) {
-    var $data = $(_this.formatDocument(data)),
-        $dataBody = $data.find('.document-body:first'),
-        $dataContent = $dataBody.find(_this.options.contentSelector),
-        html = $dataContent.html() || $data.html(),
-        $scripts = $dataContent.find('.document-script');
+    // Build ajax settings
+    this.buildSettings(this.getAttributes(eve.target));
 
-    if ($scripts.length) {
-      $scripts.detach();
+    // Ajaxify the link
+    this.History.pushState(null, title, url);
+
+    eve.preventDefault();
+    return false;
+  };
+
+  /**
+   * Function in charge of parsing all the attributes of an ajaxify link.
+   * @param  {HTMLAnchorElement} link
+   * @return {Function}      Return a function able to be called when ever we want in the future.
+   */
+  ajx.getAttributes = function getLinkAttributes(link) {
+    return {
+      url: link.attr('href')
+    };
+  };
+
+  /**
+   * Construct and build the settings to pass to the AJAX method.
+   * Apply some basic configuration, then if the user passed the "setData" function, it we'll apply as well those.
+   * @return {Object}
+   */
+  ajx.buildSettings = function buildAjaxSettings(attrs) {
+    var settings = {
+      url: attrs ? attrs.url : this.History.getState().url,
+      beforeSend: this.options.beforeSend,
+      cache: this.options.cache ? true : false
+    };
+
+    if (this.options.setData) {
+      settings.data = this.options.setData(attrs);
     }
 
-    if (!html) {
-      _this.document.location.href = url;
-      return false;
+    this.settings = settings;
+    return this.settings;
+  };
+
+  /**
+   * Function the handles the start of the stateChange of our ajaxify
+   */
+  ajx.stateChange = function stateChange() {
+    var ajaxSettings = this.settings,
+        relativeUrl = ajaxSettings.url.replace(this.rootUrl, '');
+
+    this.trigger('start');
+
+    if (this.options.scrollBefore) {
+      this.performScroll();
     }
 
-    // Update Menu
-    // TODO: Implement updateMenu correctly.
-    // this.updateMenu(settings.url, url);
-
-    // Update the content
-    _this.$content.html(html);
-
-    if (_this.options.animateClass) {
-      _this.$content.addClass(_this.options.animateClass.end);
-      return _this.endAjax.call(_this, settings, url, $data, $dataContent, $dataBody, $scripts);
+    // Set Loading
+    if (this.options.animateClass) {
+      return this.$content.addClass(this.options.animateClass.start).one(transitionEvent + ' ' + animationEvent, this.ajax.bind(this, ajaxSettings, relativeUrl));
     }
-  });
-};
 
-/**
- * Simple html cleaning
- * @param  {String} html The html response in String format.
- * @return {String}      Return the HTML String clean.
- */
-ajx.formatDocument = function formatDocument(html) {
-  var result = String(html).replace(/<\!DOCTYPE[^>]*>/i, '').replace(/<(html|head|body|title|meta|script)([\s\>])/gi, '<div class="document-$1"$2').replace(/<\/(html|head|body|title|meta|script)\>/gi, '</div>');
+    return this.ajax.call(this, ajaxSettings, relativeUrl);
+  };
 
-  return $.trim(result);
-};
+  /**
+   * The main function that handles all the necessary calls,
+   * and processes the ajax return data an processes it.
+   * @param  {Object} settings The Ajax settings
+   * @param  {String} url      The url which we wanna go
+   */
+  ajx.ajax = function ajaxAjaxify(settings, url) {
+    var _this = this;
 
-/**
- * Function handling all the final steps of our ajax call
- * @param  {Object}      settings
- * @param  {String}      url
- * @param  {Object}      data
- * @param  {HTML}        dContent
- * @param  {HTML}        dBody
- * @param  {HTMLScripts} scripts
- */
-ajx.endAjax = function endAjaxAjaxify(settings, url, data, dContent, dBody, scripts) {
-  var animClass = this.options.animateClass;
+    if (this.ran) return;
 
-  if (animClass) {
-    this.$content.removeClass([animClass.start, animClass.end]);
-  }
+    this.ran = true;
 
-  // Reset
-  this.resetAjaxify();
+    $.ajax(settings).done(function (data, textStatus, jqXHR) {
+      var $data = $(_this.formatDocument(data)),
+          $dataBody = $data.find('.document-body:first'),
+          $dataContent = $dataBody.find(_this.options.contentSelector),
+          html = $dataContent.html() || $data.html(),
+          $scripts = $dataContent.find('.document-script');
 
-  document.title = data.find('.document-title:first').text();
-
-  try {
-    document.getElementsByTagName('title')[0].innerHTML = document.title.replace('<', '&lt;').replace('>', '&gt;').replace(' & ', ' &amp; ');
-  } catch (e) {}
-
-  // Add scripts
-  this.addScripts(scripts);
-
-  // Complete the change
-  if (!this.options.scrollBefore) {
-    this.performScroll();
-  }
-
-  this.trigger('data', {
-    newContainer: dContent,
-    ajaxContainer: this.$content,
-    data: dBody
-  });
-
-  this.trigger(this.options.completedEventName);
-
-  // Inform Google Analytics of the change
-  this._analytics(url);
-};
-
-ajx.addScripts = function addScripts(scripts) {
-  var _this2 = this;
-
-  scripts.each(function (i, el) {
-    var $script = $(el),
-        scriptText = $script.text(),
-        scriptNode = document.createElement('script');
-
-    if ($script.attr('src')) {
-      if (!$script[0].async) {
-        scriptNode.async = false;
+      if ($scripts.length) {
+        $scripts.detach();
       }
 
-      scriptNode.src = $script.attr('src');
+      if (!html) {
+        _this.document.location.href = url;
+        return false;
+      }
+
+      // Update Menu
+      // TODO: Implement updateMenu correctly.
+      // this.updateMenu(settings.url, url);
+
+      // Update the content
+      _this.$content.html(html);
+
+      if (_this.options.animateClass) {
+        return _this.$content.addClass(_this.options.animateClass.end).one(transitionEvent + ' ' + animationEvent, _this.endAjax.bind(_this, settings, $dataContent, $dataBody, $scripts));
+      }
+
+      return _this.endAjax.call(_this, settings, url, $data, $dataContent, $dataBody, $scripts);
+    });
+  };
+
+  /**
+   * Simple html cleaning
+   * @param  {String} html The html response in String format.
+   * @return {String}      Return the HTML String clean.
+   */
+  ajx.formatDocument = function formatDocument(html) {
+    var result = String(html).replace(/<\!DOCTYPE[^>]*>/i, '').replace(/<(html|head|body|title|meta|script)([\s\>])/gi, '<div class="document-$1"$2').replace(/<\/(html|head|body|title|meta|script)\>/gi, '</div>');
+
+    return $.trim(result);
+  };
+
+  /**
+   * Function handling all the final steps of our ajax call
+   * @param  {Object}      settings
+   * @param  {String}      url
+   * @param  {Object}      data
+   * @param  {HTML}        dContent
+   * @param  {HTML}        dBody
+   * @param  {HTMLScripts} scripts
+   */
+  ajx.endAjax = function endAjaxAjaxify(settings, url, data, dContent, dBody, scripts) {
+    var animClass = this.options.animateClass;
+
+    if (animClass) {
+      this.$content.removeClass(animClass.start);
+      this.$content.removeClass(animClass.end);
     }
 
-    scriptNode.appendChild(document.createTextNode(scriptText));
-    _this2.contentNode.appendChild(scriptNode);
-  });
-};
+    // Reset
+    this.resetAjaxify();
 
-/**
- * Change the active class in the menu to reflect the normal behavior of a dynamic website.
- * @param  {String} url         Absolute url of the current location.
- * @param  {String} relativeUrl The relative url of the current location.
- */
-ajx.updateMenu = function updateMenu(url, relativeUrl) {
-  var $menuChildren = this.$menu.find(this.options.menuChildrenSelector);
+    document.title = data.find('.document-title:first').text();
 
-  $menuChildren.filter(this.options.activeSelector).removeClass(this.options.activeClass);
-  $menuChildren = $menuChildren.has('a[href^="' + relativeUrl + '"], a[href^="/' + relativeUrl + '"],a[href^="' + url + '"]');
+    try {
+      document.getElementsByTagName('title')[0].innerHTML = document.title.replace('<', '&lt;').replace('>', '&gt;').replace(' & ', ' &amp; ');
+    } catch (e) {}
 
-  if ($menuChildren.length === 1) {
-    $menuChildren.addClass(this.options.activeClass);
+    // Add scripts
+    this.addScripts(scripts);
+
+    // Complete the change
+    if (!this.options.scrollBefore) {
+      this.performScroll();
+    }
+
+    this.trigger('data', {
+      newContainer: dContent,
+      ajaxContainer: this.$content,
+      data: dBody
+    });
+
+    this.trigger(this.options.completedEventName, {
+      url: url
+    });
+
+    // Inform Google Analytics of the change
+    this._analytics(url);
+
+    this.ran = false;
+  };
+
+  ajx.addScripts = function addScripts(scripts) {
+    var _this2 = this;
+
+    scripts.each(function (i, el) {
+      var $script = $(el),
+          scriptText = $script.text(),
+          scriptNode = document.createElement('script');
+
+      if ($script.attr('src')) {
+        if (!$script[0].async) {
+          scriptNode.async = false;
+        }
+
+        scriptNode.src = $script.attr('src');
+      }
+
+      scriptNode.appendChild(document.createTextNode(scriptText));
+      _this2.contentNode.appendChild(scriptNode);
+    });
+  };
+
+  /**
+   * Change the active class in the menu to reflect the normal behavior of a dynamic website.
+   * @param  {String} url         Absolute url of the current location.
+   * @param  {String} relativeUrl The relative url of the current location.
+   */
+  ajx.updateMenu = function updateMenu(url, relativeUrl) {
+    var $menuChildren = this.$menu.find(this.options.menuChildrenSelector);
+
+    $menuChildren.filter(this.options.activeSelector).removeClass(this.options.activeClass);
+    $menuChildren = $menuChildren.has('a[href^="' + relativeUrl + '"], a[href^="/' + relativeUrl + '"],a[href^="' + url + '"]');
+
+    if ($menuChildren.length === 1) {
+      $menuChildren.addClass(this.options.activeClass);
+    }
+  };
+
+  /**
+   * Perform a ScrollTo
+   */
+  ajx.performScroll = function performScroll() {
+    /* http://balupton.com/projects/jquery-scrollto */
+    if (this.$body.scrollTo !== void 0) {
+      var duration = this.options.scrollOptions.duration;
+      delete this.options.scrollOptions.duration;
+      this.$body.scrollTo(0, duration, $.extend({}, this.options.scrollOptions));
+    }
+  };
+
+  /**
+   * Inform Google Analytics that we changed the page, so it acts accordingly.
+   * @param  {String} url The url from the new current location.
+   */
+  ajx._analytics = function notifyAnalytics(url) {
+    if (typeof window._gaq !== 'undefined') {
+      window._gaq.push(['_trackPageview', url]);
+    }
+  };
+
+  /**
+   * Reset all the links once we changed the page and bind the events accordingly.
+   * An emits a "reset" event.
+   */
+  ajx.resetAjaxify = function resetAjaxify() {
+    this.trigger('reset');
+  };
+
+  /**
+   * This is the public factory function exposed to the user.
+   * @param  {Object} options The settings from the user based on his needs.
+   * @return {Object}         Returns the new Ajaxify Object.
+   */
+  function ajaxify(options) {
+    if (toString.call(options) !== '[object Object]') return new Error('Options must be an object.');
+
+    var ajaxify = extend({}, ajx);
+    ajaxify.__initialize(options);
+
+    return ajaxify;
   }
-};
 
-/**
- * Perform a ScrollTo
- */
-ajx.performScroll = function performScroll() {
-  /* http://balupton.com/projects/jquery-scrollto */
-  if (this.$body.ScrollTo) {
-    this.$body.ScrollTo(this.options.scrollOptions);
+  var root = 'object' === typeof window ? window : this;
+
+  if ('object' === typeof root) return root.ajaxify = ajaxify;
+
+  if ('function' === typeof root.define && !root.define.amd.ajaxify) {
+    root.define(function (require, exports, module) {
+      root.define.amd.ajaxify = true;
+      return ajaxify;
+    });
+  } else if ('object' === typeof module && 'object' === typeof module.exports) {
+    module.exports = exports = ajaxify;
+    //root.ajaxify = ajaxify;
   }
-};
-
-/**
- * Inform Google Analytics that we changed the page, so it acts accordingly.
- * @param  {String} url The url from the new current location.
- */
-ajx._analytics = function notifyAnalytics(url) {
-  if (typeof window._gaq !== 'undefined') {
-    window._gaq.push(['_trackPageview', url]);
-  }
-};
-
-/**
- * Reset all the links once we changed the page and bind the events accordingly.
- * An emits a "reset" event.
- */
-ajx.resetAjaxify = function resetAjaxify() {
-  this.$links = null;
-  this.$links = $(this.options.linkSelector);
-  this.$links.on('click', this.clickAjax.bind(this));
-
-  this.trigger('reset');
-};
-
-/**
- * This is the public factory function exposed to the user.
- * @param  {Object} options The settings from the user based on his needs.
- * @return {Object}         Returns the new Ajaxify Object.
- */
-module.exports = function ajaxify(options) {
-  if (toString.call(options) !== '[object Object]') return new Error('Options must be an object.');
-
-  var ajaxify = Object.create(ajx);
-  ajaxify.__initialize(options);
-
-  return ajaxify;
-};
+})();
 
 },{"./css-events":2,"ampersand-events":3}],2:[function(require,module,exports){
 'use strict';
@@ -427,18 +451,19 @@ function whichTransitionEvent() {
 }
 
 function whichAnimationEvent() {
-  var t;
-  var el = document.createElement('fakeelement');
-  var transitions = {
-    'transition': 'transitionend',
-    'OTransition': 'oTransitionEnd',
-    'MozTransition': 'transitionend',
-    'WebkitTransition': 'webkitTransitionEnd'
+  var t,
+      el = document.createElement('fakeelement');
+
+  var animations = {
+    'animation': 'animationend',
+    'OAnimation': 'oAnimationEnd',
+    'MozAnimation': 'animationend',
+    'WebkitAnimation': 'webkitAnimationEnd'
   };
 
-  for (t in transitions) {
+  for (t in animations) {
     if (el.style[t] !== undefined) {
-      return transitions[t];
+      return animations[t];
     }
   }
 }
