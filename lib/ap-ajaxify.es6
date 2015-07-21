@@ -39,6 +39,8 @@
 import Events from 'ampersand-events';
 import cssEvents from './css-events';
 
+//import debounce from 'debounce';
+
 
 (function() {
   'use strict';
@@ -54,7 +56,7 @@ import cssEvents from './css-events';
   const extend = $.extend;
 
   /**
-   * This are the defautls values that gets passed to the ajaxify "function".
+   * This are the defaults values that gets passed to the ajaxify "function".
    * Overwrite to the user needs.
    * @type {Object}
    */
@@ -94,7 +96,7 @@ import cssEvents from './css-events';
 
   /**
    * This is the method in charge of initializing all the necessary variables.
-   * @param  {Object} options Object customization based on the defautls above supplied.
+   * @param  {Object} options Object customization based on the defaults above supplied.
    */
   ajx.__initialize = function mainInitAjx(options) {
     this.options = extend({}, defaults, options);
@@ -158,8 +160,10 @@ import cssEvents from './css-events';
     // Continue as normal for cmd click
     if (eve.which == 2 || eve.metaKey) return true;
 
+    this.elementClicked = $this;
+
     // Build ajax settings
-    this.buildSettings(this.getAttributes(eve.target));
+    this.buildSettings(this.getAttributes($this));
 
     // Ajaxify the link
     this.History.pushState(null, title, url);
@@ -212,10 +216,21 @@ import cssEvents from './css-events';
       this.performScroll();
     }
 
+    // TODO: Implement it in parallel?
+    if (this.options.onStart && 'function' === typeof this.options.onStart) {
+      return this.options.onStart.bind(
+        this,
+        this.$content,
+        this.elementClicked,
+        // Done callback
+        this.ajax.bind(this, ajaxSettings, relativeUrl)
+      );
+    }
+
     // Set Loading
     if (this.options.animateClass) {
       return this.$content.addClass(this.options.animateClass.start)
-                          .one(`${transitionEvent} ${animationEvent}`, this.ajax.bind(this, ajaxSettings, relativeUrl));
+      .one(`${transitionEvent} ${animationEvent}`, this.ajax.bind(this, ajaxSettings, relativeUrl));
     }
 
     return this.ajax.call(this, ajaxSettings, relativeUrl);
@@ -257,7 +272,7 @@ import cssEvents from './css-events';
 
       if (this.options.animateClass) {
         return this.$content.addClass(this.options.animateClass.end)
-                            .one(`${transitionEvent} ${animationEvent}`, this.endAjax.bind(this, settings, $dataContent, $dataBody, $scripts));
+        .one(`${transitionEvent} ${animationEvent}`, this.endAjax.bind(this, settings, url, $data, $dataContent, $dataBody, $scripts));
       }
 
       return this.endAjax.call(this, settings, url, $data, $dataContent, $dataBody, $scripts);
@@ -271,9 +286,9 @@ import cssEvents from './css-events';
    */
   ajx.formatDocument = function formatDocument(html) {
     let result = String(html)
-      .replace(/<\!DOCTYPE[^>]*>/i, '')
-      .replace(/<(html|head|body|title|meta|script)([\s\>])/gi, '<div class="document-$1"$2')
-      .replace(/<\/(html|head|body|title|meta|script)\>/gi, '</div>');
+    .replace(/<\!DOCTYPE[^>]*>/i, '')
+    .replace(/<(html|head|body|title|meta|script)([\s\>])/gi, '<div class="document-$1"$2')
+    .replace(/<\/(html|head|body|title|meta|script)\>/gi, '</div>');
 
     return $.trim(result);
   };
@@ -289,6 +304,8 @@ import cssEvents from './css-events';
    */
   ajx.endAjax = function endAjaxAjaxify(settings, url, data, dContent, dBody, scripts) {
     const animClass = this.options.animateClass;
+
+    console.log(arguments);
 
     if (animClass) {
       this.$content.removeClass(animClass.start);
@@ -329,6 +346,7 @@ import cssEvents from './css-events';
   };
 
   ajx.addScripts = function addScripts(scripts) {
+
     scripts.each((i, el) => {
       let $script = $(el),
         scriptText = $script.text(),

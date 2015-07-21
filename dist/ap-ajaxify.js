@@ -49,6 +49,8 @@ var _cssEvents = require('./css-events');
 
 var _cssEvents2 = _interopRequireDefault(_cssEvents);
 
+//import debounce from 'debounce';
+
 (function () {
   'use strict';
 
@@ -63,7 +65,7 @@ var _cssEvents2 = _interopRequireDefault(_cssEvents);
   var extend = $.extend;
 
   /**
-   * This are the defautls values that gets passed to the ajaxify "function".
+   * This are the defaults values that gets passed to the ajaxify "function".
    * Overwrite to the user needs.
    * @type {Object}
    */
@@ -103,7 +105,7 @@ var _cssEvents2 = _interopRequireDefault(_cssEvents);
 
   /**
    * This is the method in charge of initializing all the necessary variables.
-   * @param  {Object} options Object customization based on the defautls above supplied.
+   * @param  {Object} options Object customization based on the defaults above supplied.
    */
   ajx.__initialize = function mainInitAjx(options) {
     this.options = extend({}, defaults, options);
@@ -167,8 +169,10 @@ var _cssEvents2 = _interopRequireDefault(_cssEvents);
     // Continue as normal for cmd click
     if (eve.which == 2 || eve.metaKey) return true;
 
+    this.elementClicked = $this;
+
     // Build ajax settings
-    this.buildSettings(this.getAttributes(eve.target));
+    this.buildSettings(this.getAttributes($this));
 
     // Ajaxify the link
     this.History.pushState(null, title, url);
@@ -221,6 +225,13 @@ var _cssEvents2 = _interopRequireDefault(_cssEvents);
       this.performScroll();
     }
 
+    // TODO: Implement it in parallel?
+    if (this.options.onStart && 'function' === typeof this.options.onStart) {
+      return this.options.onStart.bind(this, this.$content, this.elementClicked,
+      // Done callback
+      this.ajax.bind(this, ajaxSettings, relativeUrl));
+    }
+
     // Set Loading
     if (this.options.animateClass) {
       return this.$content.addClass(this.options.animateClass.start).one(transitionEvent + ' ' + animationEvent, this.ajax.bind(this, ajaxSettings, relativeUrl));
@@ -266,7 +277,7 @@ var _cssEvents2 = _interopRequireDefault(_cssEvents);
       _this.$content.html(html);
 
       if (_this.options.animateClass) {
-        return _this.$content.addClass(_this.options.animateClass.end).one(transitionEvent + ' ' + animationEvent, _this.endAjax.bind(_this, settings, $dataContent, $dataBody, $scripts));
+        return _this.$content.addClass(_this.options.animateClass.end).one(transitionEvent + ' ' + animationEvent, _this.endAjax.bind(_this, settings, url, $data, $dataContent, $dataBody, $scripts));
       }
 
       return _this.endAjax.call(_this, settings, url, $data, $dataContent, $dataBody, $scripts);
@@ -295,6 +306,8 @@ var _cssEvents2 = _interopRequireDefault(_cssEvents);
    */
   ajx.endAjax = function endAjaxAjaxify(settings, url, data, dContent, dBody, scripts) {
     var animClass = this.options.animateClass;
+
+    console.log(arguments);
 
     if (animClass) {
       this.$content.removeClass(animClass.start);

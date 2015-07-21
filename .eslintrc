@@ -28,7 +28,7 @@
     "default-case": 2,
     "dot-notation": [2, {"allowPattern": "^[a-z]+(_[a-z]+)+$"}],
     "indent": [2, 2],
-    "no-console": 2,
+    "no-console": 0,
     "no-eq-null": 2,
     "no-multiple-empty-lines": 2,
     "no-process-exit": 0,
